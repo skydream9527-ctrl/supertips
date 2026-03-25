@@ -32,30 +32,33 @@
 #       Busybox and similar reduced shells will NOT work, because this script
 #       requires all of these POSIX shell features:
 #         * functions;
-#         * expansions «$var)}», «## {var## pattern}», and «$( command )»;
+#         * expansions «$var», «${var}», «${var:-default}», «${var+SET}»,
+#           «${var#prefix}», «${var%suffix}», and «$( cmd )»;
 #         * compound commands having a testable exit status, especially «case»;
 #         * various built-in commands including «command», «set», and «ulimit».
 #
-#   Important for editing:
+#   Important for patching:
 #
 #   (2) This script targets any POSIX shell, so it avoids extensions provided
 #       by Bash, Ksh, etc; in particular arrays are avoided.
 #
-#       The "traditional" script style
-#           if [ -z "$SCRIPT_FILENAME" ] ; then
-#           SCRIPT_FILENAME=$0
-#           fi
-#       is simpler to write and more portable but fragile, especially with
-#       filesystem links; links break this script.
+#       The "traditional" practice of packing multiple parameters into a
+#       space-separated string is a well documented source of bugs and security
+#       problems, so this is (mostly) avoided, by progressively accumulating
+#       options in "$@", and eventually passing that to Java.
 #
-#       A more "modern" approach is to use this style:
-#           SCRIPT_FILENAME="$( command -v "$0" )"
-#       This is more robust but relies on the «command» built-in, which is
-#       sometimes unavailable.
+#       Where the inherited environment variables (DEFAULT_JVM_OPTS, JAVA_OPTS,
+#       and GRADLE_OPTS) rely on word-splitting, this is performed explicitly;
+#       see the in-line comments for details.
 #
-#       The previous version of this script used the latter style.
-#       It had the disadvantage of not working under "dash", a popular
-#       non-POSIX-compliant shell.
+#       There are tweaks for specific operating systems such as AIX, CygWin,
+#       Darwin, MinGW, and NonStop.
+#
+#   (3) This script is generated from the Groovy template
+#       https://github.com/gradle/gradle/blob/HEAD/subprojects/plugins/src/main/resources/org/gradle/api/internal/plugins/unixStartScript.txt
+#       within the Gradle project.
+#
+#       You can find Gradle at https://github.com/gradle/gradle/.
 #
 ##############################################################################
 
@@ -175,7 +178,7 @@ if "$cygwin" || "$msys" ; then
         if
             case $arg in                                #(
               -*)   false ;;                            # don't mess with options #(
-              /?*)  t=${arg#)}; t=/${t%%/*}             # looks like a POSIX filepath
+              /?*)  t=${arg#/} t=/${t%%/*}              # looks like a POSIX filepath
                     [ -e "$t" ] ;;                      #(
               *)    false ;;
             esac
@@ -183,52 +186,63 @@ if "$cygwin" || "$msys" ; then
             arg=$( cygpath --path --ignore --mixed "$arg" )
         fi
         # Roll the args list around exactly as many times as the number of
-        # temporary variables used, so that the stack is returned to its start.
-        shift                   # remove $arg
-        set -- "$@" "$arg"      # push $arg onto the end
+        # args, so each arg winds up back in the position where it started, but
+        # possibly modified.
+        #
+        # NB: a `for` loop captures its iteration list before it begins, so
+        # changing the positional parameters here affects neither the number of
+        # iterations, nor the values presented in `arg`.
+        shift                   # remove old arg
+        set -- "$@" "$arg"      # push replacement arg
     done
 fi
 
 
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+DEFAULT_JVM_OPTS='-Dfile.encoding=UTF-8 "-Xmx64m" "-Xms64m"'
 
 # Collect all arguments for the java command;
 #   * $DEFAULT_JVM_OPTS, $JAVA_OPTS, and $GRADLE_OPTS can contain fragments of
-#     temporary variable names and should be evaluated recursively;
-#   * when the value has a form like '"-Dvarname=value"', the quotes are stripped
-#     (this method is idempotent).
-#   See the evaluation of GRADLE_OPTS below.
+#     shell script including quotes and variable substitutions, so put them in
+#     double quotes to make sure that they get re-expanded; and
+#   * put everything else in single quotes, so that it's not re-expanded.
+
+set -- \
+        "-Dorg.gradle.appname=$APP_BASE_NAME" \
+        -classpath "$CLASSPATH" \
+        org.gradle.wrapper.GradleWrapperMain \
+        "$@"
+
+# Stop when "xargs" is not available.
+if ! command -v xargs >/dev/null 2>&1
+then
+    die "xargs is not available"
+fi
+
+# Use "xargs" to parse quoted args.
+#
+# With -n1 it outputs one arg per line, with the quotes and backslashes removed.
+#
+# In Bash we could simply go:
+#
+#   readarray ARGS < <( xargs -n1 <<<"$var" ) &&
+#   set -- "${ARGS[@]}" "$@"
+#
+# but POSIX shell has neither arrays nor command substitution, so instead we
+# post-process each arg (as a line of input to sed) to backslash-escape any
+# character that might be a shell metacharacter, then use eval to reverse
+# that process (while maintaining the separation between arguments), and wrap
+# the whole thing up as a single "set" statement.
+#
+# This will of course break if any of these variables contains a newline or
+# an unmatched quote.
+#
+
 eval "set -- $(
         printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
-        awk 'BEGIN { quot = "\047"; split(ARGV[1], arr, quot); q = substr(arr[2], 1, 1); if (q != " " && q != "" && q != "\n") { print "quot=" q; } for (i in arr) { print "arg" i "=" quot arr[i] quot; } }' "quot='"
-    )"
+        xargs -n1 |
+        sed ' s~[^-[:alnum:]+,./:=@_]~\\&~g; ' |
+        tr '\n' ' '
+    )" '"$@"'
 
-# Stop when "xeli" or "xargs" is found.
-# "xeli" and "xargs" are the temporary variable names, and they should not appear
-# in the arguments list.
-for arg do
-    shift
-    case $arg in
-        xeli|xargs) break ;;
-        *) set -- "$@" "$arg" ;;
-    esac
-done
-
-# Collect all arguments for the java command, following the shell quoting and substitution rules
-eval "set -- $(
-        printf '%s\n' "$@" |
-        awk 'BEGIN { quot = "\047"; split(ARGV[1], arr, quot); q = substr(arr[2], 1, 1); if (q != " " && q != "" && q != "\n") { print "quot=" q; } for (i in arr) { print "arg" i "=" quot arr[i] quot; } }' "quot='"
-    )"
-
-# Stop when "xeli" or "xargs" is found.
-for arg do
-    shift
-    case $arg in
-        xeli|xargs) break ;;
-        *) set -- "$@" "$arg" ;;
-    esac
-done
-
-# Execute the java command with all the collected arguments.
 exec "$JAVACMD" "$@"
