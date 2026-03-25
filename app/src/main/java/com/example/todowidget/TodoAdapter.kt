@@ -48,14 +48,15 @@ class TodoAdapter(
     }
 
     override fun onBindViewHolder(holder: TodoViewHolder, position: Int) {
-        holder.bind(todos[position])
+        val todo = todos[position]
+        holder.bind(todo)
         
         holder.tvComplete.setOnClickListener {
-            onItemCompleteListener(todos[position])
+            onItemCompleteListener(todo)
         }
         
         holder.tvDelete.setOnClickListener {
-            onItemDeleteListener(todos[position].id)
+            onItemDeleteListener(todo.id)
         }
     }
 
